@@ -4,16 +4,8 @@ public class Parada {
 
 
     private final String id;
-    private String nombre;
-    private String ubicacion;
-
-    public void setUbicacion(String ubicacion) {
-        this.ubicacion = ubicacion;
-    }
-
-    public void setNombre(String nombre) {
-        this.nombre = nombre;
-    }
+    private final String nombre;
+    private final String ubicacion;
 
     public Parada(String id, String nombre, String ubicacion) {
         this.id = id;
