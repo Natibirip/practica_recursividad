@@ -49,6 +49,8 @@ public class MainController {
     private Label lblDistancia;
     @FXML
     private Label lblCosto;
+    @FXML
+    private Label lblTransbordos;
 
     @FXML
     public void initialize() {
@@ -245,17 +247,19 @@ public class MainController {
         ResultadoRuta resultado = redTransporte.calcularRuta(origen, destino, criterio);
 
         if (resultado != null && !resultado.getCamino().isEmpty()) {
-            lblResultadoRuta.setText("Ruta: " + resultado.getCamino().toString());
+            lblResultadoRuta.setText(alerta + "Ruta: " + resultado.getCamino().toString());
             lblTiempo.setText("Tiempo: " + resultado.getTiempoTotal() + " min");
             lblDistancia.setText("Distancia: " + resultado.getDistanciaTotal() + " km");
             lblCosto.setText("Costo: $" + resultado.getCostoTotal());
+            lblTransbordos.setText("Transbordos: " + resultado.getTrasbordos());
 
             dibujarGrafo(resultado.getCamino());
         } else {
-            lblResultadoRuta.setText("No hay ruta disponible entre estas paradas.");
+            lblResultadoRuta.setText(alerta + "No hay ruta disponible entre estas paradas.");
             lblTiempo.setText("Tiempo: 0 min");
             lblDistancia.setText("Distancia: 0 km");
             lblCosto.setText("Costo: $0.00");
+            lblTransbordos.setText("Transbordos: 0");
 
             dibujarGrafo();
         }
