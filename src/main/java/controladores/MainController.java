@@ -7,10 +7,13 @@ import Modelos.Ruta;
 import Modelos.ResultadoRuta;
 import Modelos.TipoVehiculo;
 import javafx.fxml.FXML;
+import javafx.geometry.Pos;
 import javafx.scene.control.ComboBox;
 import javafx.scene.control.Label;
+import javafx.scene.layout.HBox;
 import javafx.scene.layout.Pane;
 import javafx.event.ActionEvent;
+import javafx.scene.layout.VBox;
 import javafx.scene.shape.Circle;
 import javafx.scene.shape.Line;
 import javafx.scene.paint.Color;
@@ -65,6 +68,8 @@ public class MainController {
         comboDestino.getItems().setAll(redTransporte.getAdyacencia().keySet());
 
         //cargarDatosDePrueba();
+        comboOrigen.setOnAction(e -> dibujarGrafo());
+        comboDestino.setOnAction(e -> dibujarGrafo());
         dibujarGrafo();
     }
 
@@ -98,6 +103,44 @@ public class MainController {
         return flechaGrupo;
     }
 
+    private void dibujarLeyenda() {
+        VBox leyendaBox = new VBox(8);
+        leyendaBox.layoutXProperty().bind(mapaPane.widthProperty().subtract(leyendaBox.widthProperty()).subtract(20));//el total del ancho menos 20
+        leyendaBox.setLayoutY(20);
+        // Estilo CSS de la cajita flotante
+        leyendaBox.setStyle("-fx-background-color: rgba(255, 255, 255, 0.85); -fx-padding: 15; -fx-border-color: #cccccc; -fx-border-width: 1; -fx-background-radius: 8; -fx-border-radius: 8;");
+
+        Label titulo = new Label("Tipos de Vehículo");
+        titulo.setStyle("-fx-font-weight: bold; -fx-font-size: 14px; -fx-text-fill: #333333;");
+        leyendaBox.getChildren().add(titulo);
+
+        // Agregamos los items con color un poco opaco
+        leyendaBox.getChildren().add(crearItemLeyenda("Bus", Color.rgb(135, 206, 250, 0.7)));
+        leyendaBox.getChildren().add(crearItemLeyenda("Metro", Color.rgb(255, 182, 193, 0.7)));
+        leyendaBox.getChildren().add(crearItemLeyenda("Tren", Color.rgb(255, 228, 181, 0.7)));
+        leyendaBox.getChildren().add(crearItemLeyenda("Carro", Color.rgb(221, 160, 221, 0.7)));
+        leyendaBox.getChildren().add(crearItemLeyenda("Moto", Color.rgb(255, 250, 205, 0.7)));
+
+        mapaPane.getChildren().add(leyendaBox);
+    }
+
+    private HBox crearItemLeyenda(String nombre, Color color) {
+        HBox item = new HBox(10);
+        item.setAlignment(Pos.CENTER_LEFT);
+
+        // La línea de muestra de color
+        Line linea = new Line(0, 0, 30, 0);
+        linea.setStrokeWidth(4);
+        linea.setStroke(color);
+
+        // El texto del vehículo
+        Label lbl = new Label(nombre);
+        lbl.setStyle("-fx-font-size: 12px; -fx-text-fill: #555555;");
+
+        item.getChildren().addAll(linea, lbl);
+        return item;
+    }
+
     private void dibujarGrafo() {
         dibujarGrafo(null);
     }
@@ -125,8 +168,30 @@ public class MainController {
                         }
                     }
 
-                    Color colorFlecha = esParteDeRuta ? Color.LIMEGREEN : Color.LIGHTGRAY;
-                    double grosor = esParteDeRuta ? 4.0 : 2.0;
+
+                    TipoVehiculo tipo = ruta.getVehiculo();
+                    Color colorBasePastel;
+
+                    switch (tipo) {
+                        case BUS: colorBasePastel = Color.rgb(135, 206, 250, 1.0); break;   // Azul pastel
+                        case METRO: colorBasePastel = Color.rgb(255, 182, 193, 1.0); break; // Rosa/Rojo pastel
+                        case TREN: colorBasePastel = Color.rgb(255, 228, 181, 1.0); break;  // Naranja pastel
+                        case CARRO: colorBasePastel = Color.rgb(221, 160, 221, 1.0); break; // Morado pastel
+                        case MOTO: colorBasePastel = Color.rgb(255, 250, 205, 1.0); break;  // Amarillo pastel
+                        default: colorBasePastel = Color.rgb(200, 200, 200, 1.0); break;    // Gris pastel
+                    }
+
+
+                    Color colorFlecha;
+                    if (esParteDeRuta) {
+                        // mezclamos un 45% con Verde Lima.
+                        Color mezclado = colorBasePastel.interpolate(Color.LIMEGREEN, 0.45);
+                        colorFlecha = Color.color(mezclado.getRed(), mezclado.getGreen(), mezclado.getBlue(), 1.0);
+                    } else {
+                        colorFlecha = colorBasePastel;
+                    }
+
+                    double grosor = esParteDeRuta ? 4.0 : 2.5;
 
                     Group flecha = crearFlecha(posOrigen.getX(), posOrigen.getY(), posDestino.getX(), posDestino.getY(), colorFlecha, grosor);
                     mapaPane.getChildren().add(flecha);
@@ -134,12 +199,22 @@ public class MainController {
             }
         }
 
+
         for (Parada p : adyacencia.keySet()) {
             Point2D pos = coordenadasMapa.get(p);
 
             if (pos != null) {
                 boolean esNodoDeRuta = rutaOptima != null && rutaOptima.contains(p);
-                Color colorBase = esNodoDeRuta ? Color.LIMEGREEN : Color.DODGERBLUE;
+                boolean esSeleccionada = p.equals(comboOrigen.getValue()) || p.equals(comboDestino.getValue());
+
+                Color colorBase;
+                if (esNodoDeRuta) {
+                    colorBase = Color.LIMEGREEN;
+                } else if (esSeleccionada) {
+                    colorBase = Color.LIGHTBLUE; // Color claro de selección
+                } else {
+                    colorBase = Color.DODGERBLUE; // Color azul oscuro normal
+                }
 
                 Circle nodo = new Circle(pos.getX(), pos.getY(), 15, colorBase);
                 nodo.setStroke(Color.DARKBLUE);
@@ -152,9 +227,11 @@ public class MainController {
                     } else {
                         comboDestino.setValue(p);
                     }
+                    dibujarGrafo();
                 });
 
-                nodo.setOnMouseEntered(e -> nodo.setFill(Color.LIGHTBLUE));
+                // hover un poco más brillante (Cyan)
+                nodo.setOnMouseEntered(e -> nodo.setFill(Color.CYAN));
                 nodo.setOnMouseExited(e -> nodo.setFill(colorBase));
 
                 Label etiqueta = new Label(p.getNombre());
@@ -165,6 +242,7 @@ public class MainController {
                 mapaPane.getChildren().addAll(nodo, etiqueta);
             }
         }
+        dibujarLeyenda();
     }
 
     private void cargarDatosDePrueba() {
