@@ -55,12 +55,16 @@ public class MainController {
     private Label lblCosto;
     @FXML
     private Label lblTransbordos;
+    @FXML
+    private ComboBox<String> comboAlgoritmo;
 
     @FXML
     public void initialize() {
         redTransporte = new Grafo();
         comboCriterio.getItems().setAll(Criterio.values());
         comboCriterio.setValue(Criterio.TIEMPO);
+        comboAlgoritmo.getItems().addAll("Dijkstra", "BFS (Menos paradas)", "DFS (Búsqueda profunda)", "Bellman-Ford", "Floyd-Warshall");
+        comboAlgoritmo.setValue("Dijkstra");
         TransporteDB db = new TransporteDB();
         db.cargarGrafo(redTransporte, coordenadasMapa);
 
@@ -142,10 +146,10 @@ public class MainController {
     }
 
     private void dibujarGrafo() {
-        dibujarGrafo(null);
+        dibujarGrafo(null, false); // Por defecto no es alternativa
     }
 
-    private void dibujarGrafo(List<Parada> rutaOptima) {
+    private void dibujarGrafo(List<Parada> rutaOptima, boolean esAlternativa) {
         mapaPane.getChildren().clear();
         Map<Parada, List<Ruta>> adyacencia = redTransporte.getAdyacencia();
 
@@ -168,24 +172,23 @@ public class MainController {
                         }
                     }
 
-
                     TipoVehiculo tipo = ruta.getVehiculo();
                     Color colorBasePastel;
 
                     switch (tipo) {
-                        case BUS: colorBasePastel = Color.rgb(135, 206, 250, 1.0); break;   // Azul pastel
-                        case METRO: colorBasePastel = Color.rgb(255, 182, 193, 1.0); break; // Rosa/Rojo pastel
-                        case TREN: colorBasePastel = Color.rgb(255, 228, 181, 1.0); break;  // Naranja pastel
-                        case CARRO: colorBasePastel = Color.rgb(221, 160, 221, 1.0); break; // Morado pastel
-                        case MOTO: colorBasePastel = Color.rgb(255, 250, 205, 1.0); break;  // Amarillo pastel
-                        default: colorBasePastel = Color.rgb(200, 200, 200, 1.0); break;    // Gris pastel
+                        case BUS: colorBasePastel = Color.rgb(135, 206, 250, 1.0); break;
+                        case METRO: colorBasePastel = Color.rgb(255, 182, 193, 1.0); break;
+                        case TREN: colorBasePastel = Color.rgb(255, 228, 181, 1.0); break;
+                        case CARRO: colorBasePastel = Color.rgb(221, 160, 221, 1.0); break;
+                        case MOTO: colorBasePastel = Color.rgb(255, 250, 205, 1.0); break;
+                        default: colorBasePastel = Color.rgb(200, 200, 200, 1.0); break;
                     }
-
 
                     Color colorFlecha;
                     if (esParteDeRuta) {
-                        // mezclamos un 45% con Verde Lima.
-                        Color mezclado = colorBasePastel.interpolate(Color.LIMEGREEN, 0.45);
+                        // NUEVO: Decidimos si interpolamos hacia Verde Lima o hacia Gris Oscuro
+                        Color colorDestino = esAlternativa ? Color.DIMGRAY : Color.LIMEGREEN;
+                        Color mezclado = colorBasePastel.interpolate(colorDestino, 0.65);
                         colorFlecha = Color.color(mezclado.getRed(), mezclado.getGreen(), mezclado.getBlue(), 1.0);
                     } else {
                         colorFlecha = colorBasePastel;
@@ -199,7 +202,6 @@ public class MainController {
             }
         }
 
-
         for (Parada p : adyacencia.keySet()) {
             Point2D pos = coordenadasMapa.get(p);
 
@@ -209,11 +211,12 @@ public class MainController {
 
                 Color colorBase;
                 if (esNodoDeRuta) {
-                    colorBase = Color.LIMEGREEN;
+                    // NUEVO: Los nodos también cambian a gris si es ruta alternativa
+                    colorBase = esAlternativa ? Color.DIMGRAY : Color.LIMEGREEN;
                 } else if (esSeleccionada) {
-                    colorBase = Color.LIGHTBLUE; // Color claro de selección
+                    colorBase = Color.LIGHTBLUE;
                 } else {
-                    colorBase = Color.DODGERBLUE; // Color azul oscuro normal
+                    colorBase = Color.DODGERBLUE;
                 }
 
                 Circle nodo = new Circle(pos.getX(), pos.getY(), 15, colorBase);
@@ -230,7 +233,6 @@ public class MainController {
                     dibujarGrafo();
                 });
 
-                // hover un poco más brillante (Cyan)
                 nodo.setOnMouseEntered(e -> nodo.setFill(Color.CYAN));
                 nodo.setOnMouseExited(e -> nodo.setFill(colorBase));
 
@@ -242,6 +244,7 @@ public class MainController {
                 mapaPane.getChildren().addAll(nodo, etiqueta);
             }
         }
+
         dibujarLeyenda();
     }
 
@@ -337,7 +340,7 @@ public class MainController {
             lblCosto.setText("Costo: $" + resultado.getCostoTotal());
             lblTransbordos.setText("Transbordos: " + resultado.getTrasbordos());
 
-            dibujarGrafo(resultado.getCamino());
+            dibujarGrafo(resultado.getCamino(), false);
         } else {
             lblResultadoRuta.setText(alerta + "No hay ruta disponible entre estas paradas.");
             lblTiempo.setText("Tiempo: 0 min");
@@ -348,6 +351,51 @@ public class MainController {
             dibujarGrafo();
         }
     }
+
+
+    @FXML
+    private void calcularRutaAlternativa(ActionEvent event) {
+        Parada origen = comboOrigen.getValue();
+        Parada destino = comboDestino.getValue();
+        Criterio criterio = comboCriterio.getValue();
+        String algoritmoSeleccionado = comboAlgoritmo.getValue();
+
+        if (origen == null || destino == null || criterio == null || algoritmoSeleccionado == null) {
+            lblResultadoRuta.setText("Por favor, seleccione Origen, Destino, Criterio y Algoritmo.");
+            return;
+        }
+
+        if (origen.equals(destino)) {
+            lblResultadoRuta.setText("El origen y destino son iguales.");
+            dibujarGrafo();
+            return;
+        }
+
+        boolean redConectada = redTransporte.esFuertementeConexo();
+        String alerta = !redConectada ? "ALERTA: La red tiene paradas desconectadas. \n" : "";
+
+
+        ResultadoRuta resultado = redTransporte.calcularRutaConAlgoritmo(origen, destino, criterio, algoritmoSeleccionado);
+
+        if (resultado != null && resultado.getCamino() != null && !resultado.getCamino().isEmpty()) {
+            lblResultadoRuta.setText(alerta + "Ruta (" + algoritmoSeleccionado + "): " + resultado.getCamino().toString());
+            lblTiempo.setText("Tiempo: " + resultado.getTiempoTotal() + " min");
+            lblDistancia.setText("Distancia: " + resultado.getDistanciaTotal() + " km");
+            lblCosto.setText("Costo: $" + resultado.getCostoTotal());
+            lblTransbordos.setText("Transbordos: " + resultado.getTrasbordos());
+
+            dibujarGrafo(resultado.getCamino(), true);
+        } else {
+            lblResultadoRuta.setText(alerta + "No hay ruta disponible con " + algoritmoSeleccionado + ".");
+            lblTiempo.setText("Tiempo: 0 min");
+            lblDistancia.setText("Distancia: 0 km");
+            lblCosto.setText("Costo: $0.00");
+            lblTransbordos.setText("Transbordos: 0");
+
+            dibujarGrafo();
+        }
+    }
+
 
     //abror ventana
     @FXML

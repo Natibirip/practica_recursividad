@@ -172,37 +172,231 @@ public class Grafo {
         return 0;
     }
 
-    public List<Parada> TrasbordosBfs(Parada origen, Parada destino) {
+    public ResultadoRuta calcularRutaConAlgoritmo(Parada origen, Parada destino, Criterio criterio, String algoritmo) {
+        if (algoritmo.contains("BFS")) {
+            return calcularRutaBFS(origen, destino);
+        } else if (algoritmo.contains("DFS")) {
+            return calcularRutaDFS(origen, destino);
+        } else if (algoritmo.contains("Bellman")) {
+            return calcularRutaBellmanFord(origen, destino, criterio);
+        } else if (algoritmo.contains("Floyd")) {
+            return calcularRutaFloydWarshall(origen, destino, criterio);
+        } else {
+            // Por defecto, usa tu algoritmo original (Asumido como Dijkstra)
+            return calcularRuta(origen, destino, criterio);
+        }
+    }
 
-        Map<Parada, Parada> anteriores = new HashMap<>();
-        Set<Parada> visitados = new HashSet<>();
-        Queue<Parada> cola = new LinkedList<>();
+
+    private ResultadoRuta calcularRutaBFS(Parada origen, Parada destino) {
+        java.util.Queue<Parada> cola = new java.util.LinkedList<>();
+        java.util.Set<Parada> visitados = new java.util.HashSet<>();
+        java.util.Map<Parada, Parada> padres = new java.util.HashMap<>();
 
         cola.add(origen);
         visitados.add(origen);
 
         while (!cola.isEmpty()) {
-
             Parada actual = cola.poll();
 
-            if (actual.equals(destino)) {
-                break;
-            }
+            if (actual.equals(destino)) break;
 
-            for (Ruta ruta : adyacencia.get(actual)) {
-
+            List<Ruta> rutas = adyacencia.getOrDefault(actual, new java.util.ArrayList<>());
+            for (Ruta ruta : rutas) {
                 Parada vecino = ruta.getDestino();
-
                 if (!visitados.contains(vecino)) {
-
                     visitados.add(vecino);
-                    anteriores.put(vecino, actual);
+                    padres.put(vecino, actual);
                     cola.add(vecino);
                 }
             }
         }
 
-        return reconstruirCamino(anteriores, origen, destino);
+        return reconstruirResultado(origen, destino, padres);
+    }
+
+    private ResultadoRuta calcularRutaDFS(Parada origen, Parada destino) {
+        java.util.Stack<Parada> pila = new java.util.Stack<>();
+        java.util.Set<Parada> visitados = new java.util.HashSet<>();
+        java.util.Map<Parada, Parada> padres = new java.util.HashMap<>();
+
+        pila.push(origen);
+
+        while (!pila.isEmpty()) {
+            Parada actual = pila.pop();
+
+            if (actual.equals(destino)) break;
+
+            if (!visitados.contains(actual)) {
+                visitados.add(actual);
+                List<Ruta> rutas = adyacencia.getOrDefault(actual, new java.util.ArrayList<>());
+                for (Ruta ruta : rutas) {
+                    Parada vecino = ruta.getDestino();
+                    if (!visitados.contains(vecino)) {
+                        padres.putIfAbsent(vecino, actual); // Solo guarda el primer padre encontrado
+                        pila.push(vecino);
+                    }
+                }
+            }
+        }
+
+        return reconstruirResultado(origen, destino, padres);
+    }
+
+
+    private ResultadoRuta calcularRutaBellmanFord(Parada origen, Parada destino, Criterio criterio) {
+        java.util.Map<Parada, Double> distancias = new java.util.HashMap<>();
+        java.util.Map<Parada, Parada> padres = new java.util.HashMap<>();
+
+        for (Parada p : adyacencia.keySet()) {
+            distancias.put(p, Double.MAX_VALUE);
+        }
+        distancias.put(origen, 0.0);
+
+        int numNodos = adyacencia.size();
+
+
+        for (int i = 0; i < numNodos - 1; i++) {
+            for (Parada u : adyacencia.keySet()) {
+                for (Ruta ruta : adyacencia.get(u)) {
+                    Parada v = ruta.getDestino();
+                    double peso = obtenerPeso(ruta, criterio);
+
+                    if (distancias.get(u) != Double.MAX_VALUE && distancias.get(u) + peso < distancias.get(v)) {
+                        distancias.put(v, distancias.get(u) + peso);
+                        padres.put(v, u);
+                    }
+                }
+            }
+        }
+
+        return reconstruirResultado(origen, destino, padres);
+    }
+
+
+    private ResultadoRuta calcularRutaFloydWarshall(Parada origen, Parada destino, Criterio criterio) {
+        List<Parada> nodos = new java.util.ArrayList<>(adyacencia.keySet());
+        int n = nodos.size();
+        double[][] dist = new double[n][n];
+        int[][] next = new int[n][n];
+
+
+        for (int i = 0; i < n; i++) {
+            for (int j = 0; j < n; j++) {
+                dist[i][j] = Double.MAX_VALUE;
+                next[i][j] = -1;
+            }
+            dist[i][i] = 0;
+        }
+
+
+        for (int i = 0; i < n; i++) {
+            Parada u = nodos.get(i);
+            for (Ruta ruta : adyacencia.getOrDefault(u, new java.util.ArrayList<>())) {
+                Parada v = ruta.getDestino();
+                int j = nodos.indexOf(v);
+                double peso = obtenerPeso(ruta, criterio);
+                if (peso < dist[i][j]) {
+                    dist[i][j] = peso;
+                    next[i][j] = j;
+                }
+            }
+        }
+
+        for (int k = 0; k < n; k++) {
+            for (int i = 0; i < n; i++) {
+                for (int j = 0; j < n; j++) {
+                    if (dist[i][k] != Double.MAX_VALUE && dist[k][j] != Double.MAX_VALUE &&
+                            dist[i][k] + dist[k][j] < dist[i][j]) {
+                        dist[i][j] = dist[i][k] + dist[k][j];
+                        next[i][j] = next[i][k];
+                    }
+                }
+            }
+        }
+
+        // Reconstruir el camino
+        int indiceOrigen = nodos.indexOf(origen);
+        int indiceDestino = nodos.indexOf(destino);
+
+        if (next[indiceOrigen][indiceDestino] == -1) {
+            return new ResultadoRuta(new java.util.ArrayList<>(), 0, 0, 0, 0); // No hay camino
+        }
+
+        List<Parada> camino = new java.util.ArrayList<>();
+        int actual = indiceOrigen;
+        camino.add(nodos.get(actual));
+
+        while (actual != indiceDestino) {
+            actual = next[actual][indiceDestino];
+            camino.add(nodos.get(actual));
+        }
+
+        return ensamblarResultadoFinal(camino, criterio);
+    }
+
+
+    private ResultadoRuta reconstruirResultado(Parada origen, Parada destino, java.util.Map<Parada, Parada> padres) {
+        List<Parada> camino = new java.util.ArrayList<>();
+        Parada paso = destino;
+
+        // Si no se llegó al destino, retornamos vacío
+        if (!padres.containsKey(destino) && !origen.equals(destino)) {
+            return new ResultadoRuta(camino, 0, 0, 0, 0);
+        }
+
+        camino.add(paso);
+        while (padres.containsKey(paso)) {
+            paso = padres.get(paso);
+            camino.add(paso);
+        }
+        java.util.Collections.reverse(camino);
+
+        if (!camino.get(0).equals(origen)) {
+            return new ResultadoRuta(new java.util.ArrayList<>(), 0, 0, 0, 0);
+        }
+
+        return ensamblarResultadoFinal(camino, Criterio.TIEMPO); // Usamos Tiempo por defecto para BFS/DFS
+    }
+
+    private ResultadoRuta ensamblarResultadoFinal(List<Parada> camino, Criterio criterio) {
+        double tiempoTotal = 0;
+        double costoTotal = 0;
+        double distanciaTotal = 0;
+        int transbordos = 0;
+        TipoVehiculo vehiculoAnterior = null;
+
+        for (int i = 0; i < camino.size() - 1; i++) {
+            Parada u = camino.get(i);
+            Parada v = camino.get(i + 1);
+
+
+            Ruta mejorRuta = null;
+            double mejorPeso = Double.MAX_VALUE;
+
+            for (Ruta r : adyacencia.get(u)) {
+                if (r.getDestino().equals(v)) {
+                    double pesoReal = obtenerPeso(r, criterio);
+                    if (pesoReal < mejorPeso) {
+                        mejorPeso = pesoReal;
+                        mejorRuta = r;
+                    }
+                }
+            }
+
+            if (mejorRuta != null) {
+                tiempoTotal += mejorRuta.getTiempo();
+                costoTotal += mejorRuta.getCosto();
+                distanciaTotal += mejorRuta.getDistancia();
+
+                if (vehiculoAnterior != null && mejorRuta.getVehiculo() != vehiculoAnterior) {
+                    transbordos++;
+                }
+                vehiculoAnterior = mejorRuta.getVehiculo();
+            }
+        }
+
+        return new ResultadoRuta(camino, tiempoTotal, costoTotal, distanciaTotal, transbordos);
     }
 
     public List<Parada> dijkstra (Parada origen, Parada destino, Criterio criterio) {
