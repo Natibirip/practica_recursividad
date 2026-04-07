@@ -32,6 +32,15 @@
                     onAction="#calcularRuta"/>
 
             <Separator />
+
+            <Label text="Algoritmo Alternativo:"/>
+            <ComboBox fx:id="comboAlgoritmo" prefWidth="200.0" promptText="Seleccione algoritmo..."/>
+
+            <Button fx:id="btnCalcularAlternativa" text="Calcular Alternativa" prefWidth="200.0"
+                    style="-fx-background-color: #FF8C00; -fx-text-fill: white; -fx-font-weight: bold;"
+                    onAction="#calcularRutaAlternativa"/>
+
+            <Separator />
             <Button text="Gestionar Paradas/Rutas" prefWidth="200.0" onAction="#abrirGestor"/>
         </VBox>
     </left>

@@ -7,10 +7,13 @@ import Modelos.Ruta;
 import Modelos.ResultadoRuta;
 import Modelos.TipoVehiculo;
 import javafx.fxml.FXML;
+import javafx.geometry.Pos;
 import javafx.scene.control.ComboBox;
 import javafx.scene.control.Label;
+import javafx.scene.layout.HBox;
 import javafx.scene.layout.Pane;
 import javafx.event.ActionEvent;
+import javafx.scene.layout.VBox;
 import javafx.scene.shape.Circle;
 import javafx.scene.shape.Line;
 import javafx.scene.paint.Color;
@@ -26,6 +29,7 @@ import javafx.scene.Scene;
 import javafx.stage.Stage;
 import javafx.stage.Modality;
 import java.io.IOException;
+import BaseDeDatos.TransporteDB;
 
 public class MainController {
 
@@ -51,14 +55,25 @@ public class MainController {
     private Label lblCosto;
     @FXML
     private Label lblTransbordos;
+    @FXML
+    private ComboBox<String> comboAlgoritmo;
 
     @FXML
     public void initialize() {
         redTransporte = new Grafo();
         comboCriterio.getItems().setAll(Criterio.values());
         comboCriterio.setValue(Criterio.TIEMPO);
+        comboAlgoritmo.getItems().addAll("Dijkstra", "BFS (Menos paradas)", "DFS (Búsqueda profunda)", "Bellman-Ford", "Floyd-Warshall");
+        comboAlgoritmo.setValue("Dijkstra");
+        TransporteDB db = new TransporteDB();
+        db.cargarGrafo(redTransporte, coordenadasMapa);
 
-        cargarDatosDePrueba();
+        comboOrigen.getItems().setAll(redTransporte.getAdyacencia().keySet());
+        comboDestino.getItems().setAll(redTransporte.getAdyacencia().keySet());
+
+        //cargarDatosDePrueba();
+        comboOrigen.setOnAction(e -> dibujarGrafo());
+        comboDestino.setOnAction(e -> dibujarGrafo());
         dibujarGrafo();
     }
 
@@ -92,11 +107,49 @@ public class MainController {
         return flechaGrupo;
     }
 
-    private void dibujarGrafo() {
-        dibujarGrafo(null);
+    private void dibujarLeyenda() {
+        VBox leyendaBox = new VBox(8);
+        leyendaBox.layoutXProperty().bind(mapaPane.widthProperty().subtract(leyendaBox.widthProperty()).subtract(20));//el total del ancho menos 20
+        leyendaBox.setLayoutY(20);
+        // Estilo CSS de la cajita flotante
+        leyendaBox.setStyle("-fx-background-color: rgba(255, 255, 255, 0.85); -fx-padding: 15; -fx-border-color: #cccccc; -fx-border-width: 1; -fx-background-radius: 8; -fx-border-radius: 8;");
+
+        Label titulo = new Label("Tipos de Vehículo");
+        titulo.setStyle("-fx-font-weight: bold; -fx-font-size: 14px; -fx-text-fill: #333333;");
+        leyendaBox.getChildren().add(titulo);
+
+        // Agregamos los items con color un poco opaco
+        leyendaBox.getChildren().add(crearItemLeyenda("Bus", Color.rgb(135, 206, 250, 0.7)));
+        leyendaBox.getChildren().add(crearItemLeyenda("Metro", Color.rgb(255, 182, 193, 0.7)));
+        leyendaBox.getChildren().add(crearItemLeyenda("Tren", Color.rgb(255, 228, 181, 0.7)));
+        leyendaBox.getChildren().add(crearItemLeyenda("Carro", Color.rgb(221, 160, 221, 0.7)));
+        leyendaBox.getChildren().add(crearItemLeyenda("Moto", Color.rgb(255, 250, 205, 0.7)));
+
+        mapaPane.getChildren().add(leyendaBox);
     }
 
-    private void dibujarGrafo(List<Parada> rutaOptima) {
+    private HBox crearItemLeyenda(String nombre, Color color) {
+        HBox item = new HBox(10);
+        item.setAlignment(Pos.CENTER_LEFT);
+
+        // La línea de muestra de color
+        Line linea = new Line(0, 0, 30, 0);
+        linea.setStrokeWidth(4);
+        linea.setStroke(color);
+
+        // El texto del vehículo
+        Label lbl = new Label(nombre);
+        lbl.setStyle("-fx-font-size: 12px; -fx-text-fill: #555555;");
+
+        item.getChildren().addAll(linea, lbl);
+        return item;
+    }
+
+    private void dibujarGrafo() {
+        dibujarGrafo(null, false); // Por defecto no es alternativa
+    }
+
+    private void dibujarGrafo(List<Parada> rutaOptima, boolean esAlternativa) {
         mapaPane.getChildren().clear();
         Map<Parada, List<Ruta>> adyacencia = redTransporte.getAdyacencia();
 
@@ -119,8 +172,29 @@ public class MainController {
                         }
                     }
 
-                    Color colorFlecha = esParteDeRuta ? Color.LIMEGREEN : Color.LIGHTGRAY;
-                    double grosor = esParteDeRuta ? 4.0 : 2.0;
+                    TipoVehiculo tipo = ruta.getVehiculo();
+                    Color colorBasePastel;
+
+                    switch (tipo) {
+                        case BUS: colorBasePastel = Color.rgb(135, 206, 250, 1.0); break;
+                        case METRO: colorBasePastel = Color.rgb(255, 182, 193, 1.0); break;
+                        case TREN: colorBasePastel = Color.rgb(255, 228, 181, 1.0); break;
+                        case CARRO: colorBasePastel = Color.rgb(221, 160, 221, 1.0); break;
+                        case MOTO: colorBasePastel = Color.rgb(255, 250, 205, 1.0); break;
+                        default: colorBasePastel = Color.rgb(200, 200, 200, 1.0); break;
+                    }
+
+                    Color colorFlecha;
+                    if (esParteDeRuta) {
+                        // NUEVO: Decidimos si interpolamos hacia Verde Lima o hacia Gris Oscuro
+                        Color colorDestino = esAlternativa ? Color.DIMGRAY : Color.LIMEGREEN;
+                        Color mezclado = colorBasePastel.interpolate(colorDestino, 0.65);
+                        colorFlecha = Color.color(mezclado.getRed(), mezclado.getGreen(), mezclado.getBlue(), 1.0);
+                    } else {
+                        colorFlecha = colorBasePastel;
+                    }
+
+                    double grosor = esParteDeRuta ? 4.0 : 2.5;
 
                     Group flecha = crearFlecha(posOrigen.getX(), posOrigen.getY(), posDestino.getX(), posDestino.getY(), colorFlecha, grosor);
                     mapaPane.getChildren().add(flecha);
@@ -133,7 +207,17 @@ public class MainController {
 
             if (pos != null) {
                 boolean esNodoDeRuta = rutaOptima != null && rutaOptima.contains(p);
-                Color colorBase = esNodoDeRuta ? Color.LIMEGREEN : Color.DODGERBLUE;
+                boolean esSeleccionada = p.equals(comboOrigen.getValue()) || p.equals(comboDestino.getValue());
+
+                Color colorBase;
+                if (esNodoDeRuta) {
+                    // NUEVO: Los nodos también cambian a gris si es ruta alternativa
+                    colorBase = esAlternativa ? Color.DIMGRAY : Color.LIMEGREEN;
+                } else if (esSeleccionada) {
+                    colorBase = Color.LIGHTBLUE;
+                } else {
+                    colorBase = Color.DODGERBLUE;
+                }
 
                 Circle nodo = new Circle(pos.getX(), pos.getY(), 15, colorBase);
                 nodo.setStroke(Color.DARKBLUE);
@@ -146,9 +230,10 @@ public class MainController {
                     } else {
                         comboDestino.setValue(p);
                     }
+                    dibujarGrafo();
                 });
 
-                nodo.setOnMouseEntered(e -> nodo.setFill(Color.LIGHTBLUE));
+                nodo.setOnMouseEntered(e -> nodo.setFill(Color.CYAN));
                 nodo.setOnMouseExited(e -> nodo.setFill(colorBase));
 
                 Label etiqueta = new Label(p.getNombre());
@@ -159,6 +244,8 @@ public class MainController {
                 mapaPane.getChildren().addAll(nodo, etiqueta);
             }
         }
+
+        dibujarLeyenda();
     }
 
     private void cargarDatosDePrueba() {
@@ -253,7 +340,7 @@ public class MainController {
             lblCosto.setText("Costo: $" + resultado.getCostoTotal());
             lblTransbordos.setText("Transbordos: " + resultado.getTrasbordos());
 
-            dibujarGrafo(resultado.getCamino());
+            dibujarGrafo(resultado.getCamino(), false);
         } else {
             lblResultadoRuta.setText(alerta + "No hay ruta disponible entre estas paradas.");
             lblTiempo.setText("Tiempo: 0 min");
@@ -264,6 +351,51 @@ public class MainController {
             dibujarGrafo();
         }
     }
+
+
+    @FXML
+    private void calcularRutaAlternativa(ActionEvent event) {
+        Parada origen = comboOrigen.getValue();
+        Parada destino = comboDestino.getValue();
+        Criterio criterio = comboCriterio.getValue();
+        String algoritmoSeleccionado = comboAlgoritmo.getValue();
+
+        if (origen == null || destino == null || criterio == null || algoritmoSeleccionado == null) {
+            lblResultadoRuta.setText("Por favor, seleccione Origen, Destino, Criterio y Algoritmo.");
+            return;
+        }
+
+        if (origen.equals(destino)) {
+            lblResultadoRuta.setText("El origen y destino son iguales.");
+            dibujarGrafo();
+            return;
+        }
+
+        boolean redConectada = redTransporte.esFuertementeConexo();
+        String alerta = !redConectada ? "ALERTA: La red tiene paradas desconectadas. \n" : "";
+
+
+        ResultadoRuta resultado = redTransporte.calcularRutaConAlgoritmo(origen, destino, criterio, algoritmoSeleccionado);
+
+        if (resultado != null && resultado.getCamino() != null && !resultado.getCamino().isEmpty()) {
+            lblResultadoRuta.setText(alerta + "Ruta (" + algoritmoSeleccionado + "): " + resultado.getCamino().toString());
+            lblTiempo.setText("Tiempo: " + resultado.getTiempoTotal() + " min");
+            lblDistancia.setText("Distancia: " + resultado.getDistanciaTotal() + " km");
+            lblCosto.setText("Costo: $" + resultado.getCostoTotal());
+            lblTransbordos.setText("Transbordos: " + resultado.getTrasbordos());
+
+            dibujarGrafo(resultado.getCamino(), true);
+        } else {
+            lblResultadoRuta.setText(alerta + "No hay ruta disponible con " + algoritmoSeleccionado + ".");
+            lblTiempo.setText("Tiempo: 0 min");
+            lblDistancia.setText("Distancia: 0 km");
+            lblCosto.setText("Costo: $0.00");
+            lblTransbordos.setText("Transbordos: 0");
+
+            dibujarGrafo();
+        }
+    }
+
 
     //abror ventana
     @FXML
