@@ -42,15 +42,20 @@
     </center>
 
     <bottom>
-        <HBox alignment="CENTER" spacing="20.0" style="-fx-padding: 15; -fx-background-color: #f4f4f4; -fx-border-color: #cccccc; -fx-border-width: 1 0 0 0;">
+        <VBox alignment="CENTER" spacing="10.0" style="-fx-padding: 15; -fx-background-color: #f4f4f4; -fx-border-color: #cccccc; -fx-border-width: 1 0 0 0;">
             <children>
-                <Label fx:id="lblTiempo" style="-fx-font-weight: bold;" text="Tiempo: 0 min" />
-                <Label fx:id="lblCosto" style="-fx-font-weight: bold;" text="Costo: $0.00" />
-                <Label fx:id="lblDistancia" style="-fx-font-weight: bold;" text="Distancia: 0 km" />
+                <Label fx:id="lblResultadoRuta" style="-fx-font-size: 14px; -fx-text-fill: #333333;" text="Esperando cálculo de ruta..." />
 
-                <Label fx:id="lblTransbordos" style="-fx-font-weight: bold;" text="Transbordos: 0" />
+                <HBox alignment="CENTER" spacing="20.0">
+                    <children>
+                        <Label fx:id="lblTiempo" style="-fx-font-weight: bold;" text="Tiempo: 0 min" />
+                        <Label fx:id="lblCosto" style="-fx-font-weight: bold;" text="Costo: $0.00" />
+                        <Label fx:id="lblDistancia" style="-fx-font-weight: bold;" text="Distancia: 0 km" />
+                        <Label fx:id="lblTransbordos" style="-fx-font-weight: bold;" text="Transbordos: 0" />
+                    </children>
+                </HBox>
             </children>
-        </HBox>
+        </VBox>
     </bottom>
 
 </BorderPane>

@@ -26,6 +26,7 @@ import javafx.scene.Scene;
 import javafx.stage.Stage;
 import javafx.stage.Modality;
 import java.io.IOException;
+import BaseDeDatos.TransporteDB;
 
 public class MainController {
 
@@ -57,8 +58,13 @@ public class MainController {
         redTransporte = new Grafo();
         comboCriterio.getItems().setAll(Criterio.values());
         comboCriterio.setValue(Criterio.TIEMPO);
+        TransporteDB db = new TransporteDB();
+        db.cargarGrafo(redTransporte, coordenadasMapa);
 
-        cargarDatosDePrueba();
+        comboOrigen.getItems().setAll(redTransporte.getAdyacencia().keySet());
+        comboDestino.getItems().setAll(redTransporte.getAdyacencia().keySet());
+
+        //cargarDatosDePrueba();
         dibujarGrafo();
     }
 

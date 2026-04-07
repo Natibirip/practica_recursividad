@@ -1,11 +1,16 @@
 package BaseDeDatos;
 
+import Modelos.Grafo;
 import Modelos.Parada;
 import Modelos.Ruta;
+import Modelos.TipoVehiculo;
 import javafx.geometry.Point2D;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
+import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.util.HashMap;
+import java.util.Map;
 
 public class TransporteDB {
 
@@ -83,6 +88,57 @@ public class TransporteDB {
             pstmt.setString(2, destinoId);
             pstmt.executeUpdate();
         } catch (SQLException e) {
+            e.printStackTrace();
+        }
+    }
+
+    public void cargarGrafo(Grafo redTransporte, Map<Parada, Point2D> coordenadasMapa) {
+        Map<String, Parada> mapaParadas = new HashMap<>();
+
+        try (Connection conn = ConexionDB.getConexion()) {
+            System.out.println("1. Conexión a Postgres exitosa.");
+
+            String sqlParadas = "SELECT * FROM paradas";
+            try (PreparedStatement stmt = conn.prepareStatement(sqlParadas);
+                 ResultSet rs = stmt.executeQuery()) {
+                while (rs.next()) {
+                    String id = rs.getString("id");
+                    double x = rs.getDouble("coordenada_x");
+                    double y = rs.getDouble("coordenada_y");
+                    Parada p = new Parada(id, rs.getString("nombre"), rs.getString("sector"));
+
+                    redTransporte.agregarParada(p);
+                    coordenadasMapa.put(p, new Point2D(x, y));
+                    mapaParadas.put(id, p);
+                }
+                System.out.println("2. Paradas cargadas: " + mapaParadas.size());
+            }
+
+            String sqlRutas = "SELECT * FROM rutas";
+            int rutasCargadas = 0;
+            try (PreparedStatement stmt = conn.prepareStatement(sqlRutas);
+                 ResultSet rs = stmt.executeQuery()) {
+                while (rs.next()) {
+                    String origenId = rs.getString("origen_id");
+                    String destinoId = rs.getString("destino_id");
+                    String vehiculoStr = rs.getString("vehiculo");
+
+                    Parada origen = mapaParadas.get(origenId);
+                    Parada destino = mapaParadas.get(destinoId);
+
+                    if (origen != null && destino != null) {
+                        TipoVehiculo vehiculo = TipoVehiculo.valueOf(vehiculoStr);
+                        redTransporte.agregarRuta(origen, new Ruta(destino, rs.getDouble("tiempo"), rs.getDouble("costo"), rs.getDouble("distancia"), vehiculo));
+                        rutasCargadas++;
+                    } else {
+                        System.out.println("⚠️ Error conectando ruta: " + origenId + " -> " + destinoId + " (Una parada no existe)");
+                    }
+                }
+                System.out.println("3. Rutas cargadas: " + rutasCargadas);
+            }
+
+        } catch (Exception e) {
+            System.err.println("❌ ERROR FATAL: " + e.getMessage());
             e.printStackTrace();
         }
     }
