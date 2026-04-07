@@ -1,71 +1,88 @@
 package BaseDeDatos;
 
-import Modelos.Grafo;
 import Modelos.Parada;
 import Modelos.Ruta;
-import Modelos.TipoVehiculo;
 import javafx.geometry.Point2D;
-
 import java.sql.Connection;
 import java.sql.PreparedStatement;
-import java.sql.ResultSet;
-import java.util.HashMap;
-import java.util.Map;
+import java.sql.SQLException;
 
 public class TransporteDB {
 
-    public void cargarGrafo(Grafo redTransporte, Map<Parada, Point2D> coordenadasMapa) {
-        Map<String, Parada> mapaParadas = new HashMap<>();
+    public void insertarParada(Parada p, Point2D pos) {
+        String sql = "INSERT INTO paradas (id, nombre, ubicacion, coordenada_x, coordenada_y) VALUES (?, ?, ?, ?, ?)";
+        try (Connection conn = ConexionDB.getConexion();
+             PreparedStatement pstmt = conn.prepareStatement(sql)) {
 
-        try (Connection conn = ConexionDB.getConexion()) {
+            pstmt.setString(1, p.getId());
+            pstmt.setString(2, p.getNombre());
+            pstmt.setString(3, p.getUbicacion());
+            pstmt.setDouble(4, pos.getX());
+            pstmt.setDouble(5, pos.getY());
 
-            // CARGA PARADAS
-            String sqlParadas = "SELECT * FROM paradas";
-            try (PreparedStatement stmt = conn.prepareStatement(sqlParadas);
-                 ResultSet rs = stmt.executeQuery()) {
+            pstmt.executeUpdate();
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+    }
 
-                while (rs.next()) {
-                    String id = rs.getString("id");
-                    String nombre = rs.getString("nombre");
-                    String sector = rs.getString("sector");
-                    double x = rs.getDouble("coordenada_x");
-                    double y = rs.getDouble("coordenada_y");
+    public void actualizarParada(Parada p, Point2D pos) {
+        String sql = "UPDATE paradas SET nombre = ?, sector = ?, coordenada_x = ?, coordenada_y = ? WHERE id = ?";
+        try (Connection conn = ConexionDB.getConexion();
+             PreparedStatement pstmt = conn.prepareStatement(sql)) {
 
-                    Parada p = new Parada(id, nombre, sector);
+            pstmt.setString(1, p.getNombre());
+            pstmt.setString(2, p.getUbicacion()); // Usamos el getUbicacion() que tienes en tu clase
+            pstmt.setDouble(3, pos.getX());
+            pstmt.setDouble(4, pos.getY());
+            pstmt.setString(5, p.getId());
 
-                    redTransporte.agregarParada(p);
-                    coordenadasMapa.put(p, new Point2D(x, y));
-                    mapaParadas.put(id, p);
-                }
-            }
+            pstmt.executeUpdate();
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+    }
 
-            // CARGA RUTAS
-            String sqlRutas = "SELECT * FROM rutas";
-            try (PreparedStatement stmt = conn.prepareStatement(sqlRutas);
-                 ResultSet rs = stmt.executeQuery()) {
+    public void eliminarParada(String idParada) {
+        String sql = "DELETE FROM paradas WHERE id = ?";
+        try (Connection conn = ConexionDB.getConexion();
+             PreparedStatement pstmt = conn.prepareStatement(sql)) {
 
-                while (rs.next()) {
-                    String origenId = rs.getString("origen_id");
-                    String destinoId = rs.getString("destino_id");
-                    double tiempo = rs.getDouble("tiempo");
-                    double costo = rs.getDouble("costo");
-                    double distancia = rs.getDouble("distancia");
-                    String vehiculoStr = rs.getString("vehiculo");
+            pstmt.setString(1, idParada);
+            pstmt.executeUpdate();
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+    }
 
-                    Parada origen = mapaParadas.get(origenId);
-                    Parada destino = mapaParadas.get(destinoId);
-                    TipoVehiculo vehiculo = TipoVehiculo.valueOf(vehiculoStr);
 
-                    if (origen != null && destino != null) {
-                        redTransporte.agregarRuta(origen, new Ruta(destino, tiempo, costo, distancia, vehiculo));
-                    }
-                }
-            }
+    public void insertarRuta(Parada origen, Ruta ruta) {
+        String sql = "INSERT INTO rutas (origen_id, destino_id, tiempo, costo, distancia, vehiculo) VALUES (?, ?, ?, ?, ?, ?)";
+        try (Connection conn = ConexionDB.getConexion();
+             PreparedStatement pstmt = conn.prepareStatement(sql)) {
 
-            System.out.println("Base de datos cargada con éxito.");
+            pstmt.setString(1, origen.getId());
+            pstmt.setString(2, ruta.getDestino().getId());
+            pstmt.setDouble(3, ruta.getTiempo());
+            pstmt.setDouble(4, ruta.getCosto());
+            pstmt.setDouble(5, ruta.getDistancia());
+            pstmt.setString(6, ruta.getVehiculo().name());
 
-        } catch (Exception e) {
-            System.err.println("Error al cargar la base de datos: " + e.getMessage());
+            pstmt.executeUpdate();
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+    }
+
+    public void eliminarRuta(String origenId, String destinoId) {
+        String sql = "DELETE FROM rutas WHERE origen_id = ? AND destino_id = ?";
+        try (Connection conn = ConexionDB.getConexion();
+             PreparedStatement pstmt = conn.prepareStatement(sql)) {
+
+            pstmt.setString(1, origenId);
+            pstmt.setString(2, destinoId);
+            pstmt.executeUpdate();
+        } catch (SQLException e) {
             e.printStackTrace();
         }
     }

@@ -12,6 +12,7 @@ import javafx.geometry.Point2D;
 import javafx.event.ActionEvent;
 import java.util.List;
 import java.util.Map;
+import BaseDeDatos.TransporteDB;
 
 public class GestorController {
     private Grafo redTransporte;
@@ -122,8 +123,12 @@ public class GestorController {
 
             Parada nueva = new Parada(id, nombre, ubicacion);
             redTransporte.agregarParada(nueva);
-            coordenadasMapa.put(nueva, new Point2D(x, y));
+            Point2D nuevaPos = new Point2D(x, y);
+            coordenadasMapa.put(nueva, nuevaPos);
 
+            new TransporteDB().insertarParada(nueva, nuevaPos);
+
+            finalizarAccion("Parada agregada con éxito.", lblMensajeParada);
             finalizarAccion("Parada agregada con éxito.", lblMensajeParada);
             limpiarCamposParada();
 
@@ -143,7 +148,10 @@ public class GestorController {
 
             double x = Double.parseDouble(txtXParada.getText());
             double y = Double.parseDouble(txtYParada.getText());
-            coordenadasMapa.put(p, new Point2D(x, y));
+            Point2D nuevaPos = new Point2D(x, y);
+            coordenadasMapa.put(p, nuevaPos);
+
+            new TransporteDB().actualizarParada(p, nuevaPos);
 
             finalizarAccion("Parada modificada con éxito.", lblMensajeParada);
             comboEditarParada.setValue(null); // Volver a modo "Agregar"
@@ -160,6 +168,10 @@ public class GestorController {
 
         redTransporte.eliminarParada(p);
         coordenadasMapa.remove(p);
+
+
+        new TransporteDB().eliminarParada(p.getId());
+
 
         finalizarAccion("Parada eliminada con éxito.", lblMensajeParada);
         comboEditarParada.setValue(null);
@@ -232,9 +244,11 @@ public class GestorController {
 
             if (esModificacion) {
                 redTransporte.eliminarRuta(origen, destino);
+                new TransporteDB().eliminarRuta(origen.getId(), destino.getId());
             }
 
             redTransporte.agregarRuta(origen, new Ruta(destino, tiempo, costo, distancia, vehiculo));
+            new TransporteDB().insertarRuta(origen, new Ruta(destino, tiempo, costo, distancia, vehiculo));
 
             String msg = esModificacion ? "Ruta modificada con éxito." : "Ruta agregada con éxito.";
             finalizarAccion(msg, lblMensajeRuta);
@@ -251,6 +265,7 @@ public class GestorController {
         Parada destino = comboNuevoDestino.getValue();
 
         redTransporte.eliminarRuta(origen, destino);
+        new TransporteDB().eliminarRuta(origen.getId(), destino.getId());
 
         finalizarAccion("Ruta eliminada con éxito.", lblMensajeRuta);
         verificarRutaExistente(null);
