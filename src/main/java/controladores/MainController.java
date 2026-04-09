@@ -361,39 +361,54 @@ public class MainController {
         String algoritmoSeleccionado = comboAlgoritmo.getValue();
 
         if (origen == null || destino == null || criterio == null || algoritmoSeleccionado == null) {
-            lblResultadoRuta.setText("Por favor, seleccione Origen, Destino, Criterio y Algoritmo.");
+            lblResultadoRuta.setText("Seleccione todos los campos para buscar una alternativa.");
             return;
         }
 
-        if (origen.equals(destino)) {
-            lblResultadoRuta.setText("El origen y destino son iguales.");
+        // 1. Calculamos SIEMPRE la ruta de Dijkstra como punto de comparación
+        ResultadoRuta rutaDijkstra = redTransporte.calcularRuta(origen, destino, criterio);
+
+        // 2. Calculamos la ruta con el algoritmo alternativo seleccionado
+        ResultadoRuta rutaAlternativa = redTransporte.calcularRutaConAlgoritmo(origen, destino, criterio, algoritmoSeleccionado);
+
+        // 3. Validación de existencia
+        if (rutaAlternativa == null || rutaAlternativa.getCamino() == null || rutaAlternativa.getCamino().isEmpty()) {
+            lblResultadoRuta.setText("No se encontró ninguna ruta con " + algoritmoSeleccionado + ".");
             dibujarGrafo();
             return;
         }
 
-        boolean redConectada = redTransporte.esFuertementeConexo();
-        String alerta = !redConectada ? "ALERTA: La red tiene paradas desconectadas. \n" : "";
+        // 4. COMPARACIÓN CRÍTICA: ¿Es la misma ruta que Dijkstra?
+        // Comparamos las listas de paradas (el camino)
+        if (rutaDijkstra != null && rutaAlternativa.getCamino().equals(rutaDijkstra.getCamino())) {
+            lblResultadoRuta.setText("No hay ruta alternativa distinta. " + algoritmoSeleccionado + " devolvió el mismo camino óptimo.");
 
-
-        ResultadoRuta resultado = redTransporte.calcularRutaConAlgoritmo(origen, destino, criterio, algoritmoSeleccionado);
-
-        if (resultado != null && resultado.getCamino() != null && !resultado.getCamino().isEmpty()) {
-            lblResultadoRuta.setText(alerta + "Ruta (" + algoritmoSeleccionado + "): " + resultado.getCamino().toString());
-            lblTiempo.setText("Tiempo: " + resultado.getTiempoTotal() + " min");
-            lblDistancia.setText("Distancia: " + resultado.getDistanciaTotal() + " km");
-            lblCosto.setText("Costo: $" + resultado.getCostoTotal());
-            lblTransbordos.setText("Transbordos: " + resultado.getTrasbordos());
-
-            dibujarGrafo(resultado.getCamino(), true);
+            // Opcional: Limpiar las etiquetas de datos para no confundir al usuario
+            limpiarEtiquetasResultados();
+            dibujarGrafo(); // Volver al estado base
         } else {
-            lblResultadoRuta.setText(alerta + "No hay ruta disponible con " + algoritmoSeleccionado + ".");
-            lblTiempo.setText("Tiempo: 0 min");
-            lblDistancia.setText("Distancia: 0 km");
-            lblCosto.setText("Costo: $0.00");
-            lblTransbordos.setText("Transbordos: 0");
-
-            dibujarGrafo();
+            // 5. Si es diferente, la mostramos en GRIS como pediste
+            mostrarResultadoEnPantalla(rutaAlternativa, algoritmoSeleccionado, true);
         }
+    }
+
+    // Método auxiliar para evitar repetir código de impresión
+    private void mostrarResultadoEnPantalla(ResultadoRuta res, String alg, boolean esAlternativa) {
+        String prefijo = esAlternativa ? "Ruta Alternativa (" + alg + "): " : "Ruta Óptima: ";
+        lblResultadoRuta.setText(prefijo + res.getCamino().toString());
+        lblTiempo.setText("Tiempo: " + res.getTiempoTotal() + " min");
+        lblDistancia.setText("Distancia: " + res.getDistanciaTotal() + " km");
+        lblCosto.setText("Costo: $" + res.getCostoTotal());
+        lblTransbordos.setText("Transbordos: " + res.getTrasbordos());
+
+        dibujarGrafo(res.getCamino(), esAlternativa);
+    }
+
+    private void limpiarEtiquetasResultados() {
+        lblTiempo.setText("Tiempo: 0 min");
+        lblDistancia.setText("Distancia: 0 km");
+        lblCosto.setText("Costo: $0.00");
+        lblTransbordos.setText("Transbordos: 0");
     }
 
 

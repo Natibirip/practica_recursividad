@@ -37,7 +37,7 @@ public class TransporteDB {
              PreparedStatement pstmt = conn.prepareStatement(sql)) {
 
             pstmt.setString(1, p.getNombre());
-            pstmt.setString(2, p.getUbicacion()); // Usamos el getUbicacion() que tienes en tu clase
+            pstmt.setString(2, p.getUbicacion());
             pstmt.setDouble(3, pos.getX());
             pstmt.setDouble(4, pos.getY());
             pstmt.setString(5, p.getId());
