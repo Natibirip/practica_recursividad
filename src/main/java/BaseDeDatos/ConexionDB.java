@@ -4,6 +4,7 @@ import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.SQLException;
 
+//conectar
 public class ConexionDB {
     private static final String URL = "jdbc:postgresql://localhost:5432/red_transporte";
     private static final String USER = "admin";
